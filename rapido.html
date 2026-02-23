@@ -1,0 +1,326 @@
+<html><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<title>Rapido - Holi Game</title>
+	
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: Arial, sans-serif;
+  background: src="holi_background.jpg";
+  background-size: cover;
+}
+
+#app {
+  height: 90dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+#logo {
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#logo img { height: 60px; }
+
+canvas {
+  flex: 1;
+  display: block;
+  touch-action: none;
+}
+
+/* bikeS */
+.bike {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+.bike.hidden { display: none; }
+.bike .box {
+  background: #fff;
+  border-radius: 20px;
+  padding: 22px;
+  width: 85%;
+  max-width: 320px;
+  text-align: center;
+}
+	.bike .box1 {
+ 
+  border-radius: 20px;
+  padding: 22px;
+  width: 85%;
+  max-width: 320px;
+  text-align: center;
+}
+.bike button {
+  margin-top: 18px;
+  padding: 14px 36px;
+  border: none;
+  border-radius: 30px;
+  background-image: linear-gradient(to bottom, red, yellow);
+  color: #ffffff;
+  font-size: 16px;
+}
+.bike button:hover {
+  background-image: linear-gradient(to bottom, rgb(183, 0, 255), rgb(255, 0, 47));
+  cursor: pointer;
+}
+</style>
+</head>
+
+<body>
+
+<div id="app">
+  <div id="logo">
+    <img src="rapido-logo.png">
+  </div>
+  <canvas id="game" width="1536" height="446"></canvas>
+</div>
+
+<!-- INTRO -->
+<div class="bike" id="introBike">
+  <div class="box">
+    <img src="happy-holi.png" style="width:70%">
+    <button onclick="startGame()">Start Playing</button>
+  </div>
+</div>
+
+<!-- WIN -->
+<div class="bike hidden" id="winBike">
+  <div class="box1">
+    <img src="freeRide.png" style="width:100%">
+    <button onclick="restartGame()">Play Again</button>
+  </div>
+</div>
+
+<script>
+/* ================= CANVAS ================= */
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+function resize() {
+  canvas.width = canvas.clientWidth;
+  canvas.height = canvas.clientHeight;
+}
+resize();
+window.addEventListener("resize", resize);
+
+/* ================= ASSETS ================= */
+const handImg = new Image();
+handImg.src =
+"hand.png";
+
+const balloonImg = new Image();
+balloonImg.src =
+"balloon.png";
+
+
+/* ================= STATE ================= */
+const Colors = ["F","R","E","E"];
+let balloons = [];
+let holi = [];
+let flyingColors = [];
+let gameStarted = false;
+let gameWon = false;
+let hasMovedhand = false;
+
+/* ================= hand ================= */
+const hand = {
+  x: 0,
+  y: 0,
+  w: 50,
+  h: 72,
+  r: 28,
+  rotation: 0,
+  lastX: 0
+};
+
+const BW = 64;
+const BH = 82;
+
+/* ================= INIT ================= */
+function init() {
+  balloons = [];
+  holi = [];
+  flyingColors = [];
+  gameWon = false;
+  hasMovedhand = false;
+
+  hand.x = canvas.width / 2;
+  hand.y = canvas.height - 90;
+  hand.lastX = hand.x;
+  hand.rotation = 0;
+
+  for (let i = 0; i < 5; i++) {
+    balloons.push({
+      x: Math.random() * (canvas.width - BW) + BW / 2,
+      y: Math.random() * (canvas.height - BH - 160) + 40,
+      dx: (Math.random() * 0.25 + 0.1) * (Math.random() < 0.5 ? -1 : 1),
+      dy: (Math.random() * 0.25 + 0.1) * (Math.random() < 0.5 ? -1 : 1),
+      letter: Colors[i],
+      hit: false,
+      alpha: 1,
+      hitRadius: 15,
+      rotation: (Math.random() < 0.5 ? -10 : 10) * Math.PI / 180
+    });
+  }
+}
+init();
+
+/* ================= START ================= */
+function startGame() {
+  document.getElementById("introBike").classList.add("hidden");
+  gameStarted = true;
+}
+
+/* ================= EFFECTS ================= */
+function makeholi(x,y) {
+  for (let i=0;i<5;i++) {
+    holi.push({
+      x,y,
+      dx:(Math.random()-0.5)*2.2,
+      dy:(Math.random()-0.5)*2.2,
+      alpha:1,
+      size:10+Math.random()*6
+    });
+  }
+}
+
+function makeLetter(l,x,y) {
+  flyingColors.push({ letter:l, x,y, alpha:1, size:42 });
+}
+
+/* ================= LOOP ================= */
+function update() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  if (gameStarted && !gameWon) {
+
+    balloons.forEach(b=>{
+      if(!b.hit){
+        b.x+=b.dx; b.y+=b.dy;
+        if(b.x<BW/2||b.x>canvas.width-BW/2) b.dx*=-1;
+        if(b.y<BH/2||b.y>canvas.height-BH/2) b.dy*=-1;
+      } else b.alpha-=0.03;
+
+      ctx.save();
+      ctx.globalAlpha=b.alpha;
+      ctx.translate(b.x,b.y);
+      ctx.rotate(b.rotation);
+      ctx.drawImage(balloonImg,-BW/2,-BH/2,BW,BH);
+      ctx.restore();
+    });
+    balloons = balloons.filter(b=>b.alpha>0);
+
+    holi.forEach(h=>{
+      h.x+=h.dx; h.y+=h.dy; h.alpha-=0.04;
+      ctx.globalAlpha=h.alpha;
+      ctx.fillStyle="#ff1744";
+      ctx.font=`${h.size}px Arial`;
+      ctx.fillText("😄",h.x,h.y);
+      ctx.globalAlpha=1;
+    });
+    holi = holi.filter(h=>h.alpha>0);
+
+    flyingColors.forEach(l=>{
+      l.y-=0.35; l.alpha-=0.02;
+      ctx.globalAlpha=l.alpha;
+      ctx.fillStyle="#c2185b";
+      ctx.font=`bold ${l.size}px Arial`;
+      ctx.fillText(l.letter,l.x,l.y);
+      ctx.globalAlpha=1;
+    });
+    flyingColors = flyingColors.filter(l=>l.alpha>0);
+
+    hand.rotation *= 0.85;
+    ctx.save();
+    ctx.translate(hand.x,hand.y);
+    ctx.rotate(hand.rotation);
+    ctx.drawImage(handImg,-hand.w/2,-hand.h/2,hand.w,hand.h);
+    ctx.restore();
+
+    /* TEXT ONLY BEFORE FIRST MOVE */
+    if (!hasMovedhand) {
+      ctx.fillStyle="#000000";
+      ctx.font="bold 22px Arial";
+      ctx.textAlign="center";
+      ctx.fillText(
+        "Catch the Balloons",
+        hand.x,
+        hand.y + hand.h/2 + 34
+      );
+    }
+  }
+
+  requestAnimationFrame(update);
+}
+update();
+
+/* ================= HIT ================= */
+function checkHit() {
+  balloons.forEach(b=>{
+    if(!b.hit){
+      const d=Math.hypot(hand.x-b.x, hand.y-b.y);
+      if(d < hand.r + b.hitRadius){
+        b.hit=true;
+        makeholi(b.x,b.y);
+      }
+    }
+  });
+
+  if(balloons.every(b=>b.hit) && !gameWon){
+    gameWon=true;
+    document.getElementById("winBike").classList.remove("hidden");
+  }
+}
+
+/* ================= INPUT ================= */
+canvas.addEventListener("pointerdown", e=>{
+  if(!gameStarted || gameWon) return;
+
+  const r = canvas.getBoundingClientRect();
+  hand.x = e.clientX - r.left;
+  hand.y = e.clientY - r.top;
+  hand.lastX = hand.x;
+
+  hasMovedhand = true;
+});
+
+canvas.addEventListener("pointermove", e=>{
+  if(!gameStarted || gameWon) return;
+
+  const r = canvas.getBoundingClientRect();
+  const newX = e.clientX - r.left;
+  const newY = e.clientY - r.top;
+
+  const dx = newX - hand.lastX;
+  hand.rotation = dx > 2 ? 40*Math.PI/180 :
+                   dx < -2 ? -40*Math.PI/180 : hand.rotation;
+  hand.lastX = newX;
+
+  hand.x = newX;
+  hand.y = newY;
+
+  checkHit();
+});
+
+/* ================= RESET ================= */
+function restartGame() {
+  document.getElementById("winBike").classList.add("hidden");
+  document.getElementById("introBike").classList.remove("hidden");
+  gameStarted = false;
+  init();
+}
+</script>
+</body></html>
